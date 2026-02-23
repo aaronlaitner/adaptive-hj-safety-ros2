@@ -1,7 +1,6 @@
 <div align="center">
     <summary>
-      <h1>Safe Learning in the Real World via Adaptive Shielding with Hamilton-Jacobi Reachability </h1>
-      <h2> Simulation + ROS2 Preperation </h2>
+      <h1>Adaptive Hamilton-Jacobi Safety Filtering with Learned Dynamics for Turtlebot Systems</h1>
       <br>
     </summary>
 </div>
@@ -12,16 +11,14 @@ This repository provides a simulation framework for safe reinforcement learning 
 
 This codebase is **adapted from and builds upon**
 https://github.com/sudo-michael/robust-hj-cbf-safe-rl
+https://github.com/aaronlaitner/ROS2-CMPT416-Fall2025
 with modifications to enable:
 
-- Runtime use of precomputed BRTs without HeteroCL
-- Stable integration with Gymnasium + JAX
-- Preperation for ROS2 Turtlebot deployment
+- TODO
 
 ## Current Capabilities:
 
 - Dubins3D navigation in simulation
-
 - SAC-LAG reinforcement learning
 - Online HJ-CBF safety filtering
 - Precomputed Backward Reachable Tubes (BRTs)
@@ -75,11 +72,10 @@ This project is adapted from and builds upon:
 
 - Michael Lu et al., *Safe Learning in the Real World via Adaptive Shielding with Hamilton-Jacobi Reachability*  
 - https://github.com/sudo-michael/robust-hj-cbf-safe-rl
+- Aaron Laitner, *ROS2-CMPT416-Fall2025*
+- https://github.com/aaronlaitner/ROS2-CMPT416-Fall2025
 
 Major modifications include:
-- Replacement of HeteroCL-only dynamics with executable numerical Dubins dynamics
-- Offline precomputation and runtime use of BRT value grids
-- Integration with Gymnasium-based RL training pipelines
-- Preparation for ROS2 Turtlebot deployment
+- TODO
 
 All original licensing terms are preserved.
