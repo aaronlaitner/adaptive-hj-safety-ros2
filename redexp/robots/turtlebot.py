@@ -1,7 +1,9 @@
-import rospy
+import rclpy
+from rclpy.node import Node
+from rclpy.exceptions import ROSInterruptException
 from geometry_msgs.msg import Twist, Vector3
 from geometry_msgs.msg import TransformStamped
-import tf
+import tf2_ros as tf
 from time import sleep
 import numpy as np
 from threading import Lock
@@ -30,38 +32,7 @@ Y_OFFSET = +0.0
 DEBUG = False
 
 
-def calculate_heading(pose):
-    x = pose.rotation.x
-    y = pose.rotation.y
-    z = pose.rotation.z
-    w = pose.rotation.w
-    quaternion = (x, y, z, w)
-
-    # add offset to make yaw=0 face the computers
-    rotation_quaternion = tf.transformations.quaternion_from_euler(
-        0, 0, ROTATION_OFFSET
-    )
-
-    quaternion = tf.transformations.quaternion_multiply(rotation_quaternion, quaternion)
-
-    roll, pitch, yaw = tf.transformations.euler_from_quaternion(quaternion)
-    return yaw
-
-
-def update_state(ts_msg):
-    pose = ts_msg.transform
-    x = pose.translation.x
-    y = pose.translation.y
-
-    x += X_OFFSET
-    y += Y_OFFSET
-    # theta off-set done in heading calclation
-    theta = calculate_heading(pose)
-
-    return np.array([x, y, theta])
-
-
-class Turtlebot:
+class Turtlebot(Node):
     def __init__(self, goal_location, goal_r, model_mismatch) -> None:
         self.state = np.array([0.0, 0.0, 0.0])
         self.mutex = Lock()
@@ -85,17 +56,17 @@ class Turtlebot:
         self.goal_location = goal_location
         self.goal_r = goal_r
 
-        rospy.init_node("turtlebot_controller_node")
-        self.pub = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist, queue_size=1)
-        rospy.Subscriber(
-            VICON_TOPIC,
+        # Ros2 infra
+        super().__init__("turlebot_controller_node")
+        self.pub = self.create_publisher(Twist, "/cmd_vel_mux/input/teleop",1)
+        self.vicon_sub = self.create_subscription(
             TransformStamped,
+            VICON_TOPIC,
             self.update_state,
-            queue_size=1,
-            buff_size=2**24,
+            2**24
         )
 
-        rospy.loginfo("initialized turtlebot_controller_node")
+        self.get_logger().info("Initialized turtlebot_controller_node")
 
     def update_state(self, ts_msg):
         with self.mutex:
@@ -154,28 +125,67 @@ class Turtlebot:
         value = grid.get_value(self.true_brt, state)
         return value
 
+class TurtleBotMonitor(Node):
+    def __init__(self):
+        super().__init__("turtlebot_monitor_node")
+        self.get_logger().info("Initialized turtlebot_monitor_node")
+
+        self.grid = grid
+        self.brt = np.load("./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy")
+
+        self.sub = self.create_subscription(
+            TransformStamped,
+            VICON_TOPIC,
+            self.monitor_update_state,
+            2**24,
+        )
+
+    def calculate_heading(pose):
+        x = pose.rotation.x
+        y = pose.rotation.y
+        z = pose.rotation.z
+        w = pose.rotation.w
+        quaternion = (x, y, z, w)
+
+        # add offset to make yaw=0 face the computers
+        rotation_quaternion = tf.transformations.quaternion_from_euler(
+            0, 0, ROTATION_OFFSET
+        )
+
+        quaternion = tf.transformations.quaternion_multiply(rotation_quaternion, quaternion)
+
+        roll, pitch, yaw = tf.transformations.euler_from_quaternion(quaternion)
+        return yaw
+
+    def update_state(self, ts_msg):
+        pose = ts_msg.transform
+        x = pose.translation.x
+        y = pose.translation.y
+
+        x += X_OFFSET
+        y += Y_OFFSET
+        # theta off-set done in heading calculation
+        theta = self.calculate_heading(pose)
+
+        return np.array([x, y, theta])
+    
+    def monitor_update_state(self, ts_msg):
+        state = self.update_state(ts_msg)
+        value = self.grid.get_value(
+            self.brt,
+            state,
+        )
+        self.get_logger().debug(f"turtlebot2 state: {state}\n\
+                                value = {value}")
+
+def main(args=None):
+    try:
+        rclpy.init(args=args)
+        monitor_node = TurtleBotMonitor()
+        rclpy.spin(monitor_node)
+    except ROSInterruptException:
+        monitor_node.get_logger.info("Shutdown")
+        rclpy.shutdown()
 
 if __name__ == "__main__":
-    try:
-        rospy.init_node("turtlebot_monitor_node", log_level=rospy.DEBUG)
-        rospy.loginfo("Initialized turtlebot_monitor_node")
-
-        def monitor_update_state(ts_msg):
-            state = update_state(ts_msg)
-            value = grid.get_value(
-                np.load("./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"),
-                state,
-            )
-            rospy.logdebug(f"turtlebot2 state: {state}")
-            rospy.logdebug(f"value = {value}")
-
-        rospy.Subscriber(
-            VICON_TOPIC,
-            TransformStamped,
-            monitor_update_state,
-            queue_size=1,
-            buff_size=2**24,
-        )
-        rospy.spin()
-    except rospy.ROSInterruptException:
-        rospy.loginfo("shutdown")
+    main()
