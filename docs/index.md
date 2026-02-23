@@ -1,7 +1,7 @@
 <div align="center">
     <summary>
       <h1>Adaptive Hamilton-Jacobi Safety Filtering with Learned Dynamics for Turtlebot Systems</h1>
-      <h2> Aaron Laitner - Sviatoslav Rublov - Arshdeep Singh - Edmond Nguyen - Dr. Mo Chen </h2>
+      <h2> Aaron Laitner - Sviatoslav Rublov - Arshdeep Singh - Edmond Nguyen - Minh Bui - Dr. Mo Chen </h2>
       <br>
       <h3> Simon Fraser University, Burnaby, BC, Canada </h3>
       <br>
