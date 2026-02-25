@@ -7,6 +7,8 @@ from redexp.utils import normalize_angle
 from redexp.config.turtlebot import OBSTACLE_RADIUS
 from redexp.robots.turtlebot import Turtlebot
 
+import rclpy
+
 
 class TurtlebotEnv(gym.Env):
     def __init__(self, goal_conditioned=False, model_mismatch=False):
@@ -15,6 +17,7 @@ class TurtlebotEnv(gym.Env):
         self.goal_location = np.array([1.75, 1.25], dtype=np.float32)
         self.goal_r = 0.15
 
+        rclpy.init()
         self.turtlebot = Turtlebot(
             goal_location=self.goal_location,
             goal_r=self.goal_r,

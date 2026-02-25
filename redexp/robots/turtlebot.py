@@ -79,15 +79,17 @@ class Turtlebot(Node):
     def set_action(self, action):
         if not self.in_bounds():
             print("TURTLEBOT2 OUT OF BOUNDS")
-            vel_cmd = Twist(linear=Vector3(0, 0, 0), angular=Vector3(0, 0, 0))
+            vel_cmd = Twist()
         elif self.reach_goal():
             print("TURTLEBOT2 REACHED GOAL")
-            vel_cmd = Twist(linear=Vector3(0, 0, 0), angular=Vector3(0, 0, 0))
+            vel_cmd = Twist()
         elif self.near_obs():
             print("TURTLEBOT2 TOO CLOSE TO OBSTACLE")
-            vel_cmd = Twist(linear=Vector3(0, 0, 0), angular=Vector3(0, 0, 0))
+            vel_cmd = Twist()
         else:
-            vel_cmd = Twist(linear=Vector3(0.6, 0, 0), angular=Vector3(0, 0, action[0]))
+            vel_cmd = Twist()
+            vel_cmd.linear.x = 0.6
+            vel_cmd.angular.z = action[0]
 
         if DEBUG:
             value = grid.get_value(self.brt, self.get_state())
