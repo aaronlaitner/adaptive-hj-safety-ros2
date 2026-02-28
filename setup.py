@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             "safe_rl_robot_node = redexp.robots.turtlebot:main",
+            "actuation_node = actuation_layer.actuation_node:main",
         ],
     },
 )
