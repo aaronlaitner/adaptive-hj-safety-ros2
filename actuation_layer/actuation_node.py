@@ -4,9 +4,9 @@ from geometry_msgs.msg import Twist
 
 # Safety Configuration
 
-MAX_LINEAR = 0.22        # m/s
-MAX_ANGULAR = 2.5        # rad/s
-CMD_TIMEOUT = 1.0        # seconds before stopping robot
+MAX_LINEAR = 0.22       # m/s (Turtlebot3 Burger limit)
+MAX_ANGULAR = 2.5       # rad/s
+CMD_TIMEOUT = 1.0       # seconds before stopping robot
 
 
 class ActuationNode(Node):
@@ -31,10 +31,13 @@ class ActuationNode(Node):
 
         self.last_cmd_time = self.get_clock().now()
         self.robot_stopped = False
-        self.timer = self.create_timer(0.1, self.check_timeout)
-        self.get_logger().info("Actuation node started with bounds + timeout safety.")
+        self.cmd_counter = 0
+        self.timeout_timer = self.create_timer(0.1, self.check_timeout)
+        self.rate_timer = self.create_timer(1.0, self.report_rate)
 
-    # Utility: clamp with detection
+        self.get_logger().info("Actuation node started with safety bounds and timeout protection.")
+
+    # Utility: Clamp with detection
 
     def clamp_with_flag(self, value, max_value):
         if value > max_value:
@@ -47,7 +50,8 @@ class ActuationNode(Node):
 
     def safe_callback(self, msg):
         self.last_cmd_time = self.get_clock().now()
-        self.robot_stopped = False  
+        self.robot_stopped = False
+        self.cmd_counter += 1
 
         bounded_msg = Twist()
 
@@ -60,18 +64,13 @@ class ActuationNode(Node):
         bounded_msg.linear.x = bounded_linear
         bounded_msg.angular.z = bounded_angular
 
-        # Logging saturation events
-        if lin_saturated:
+        if lin_saturated or ang_saturated:
             self.get_logger().warn(
-                f"Linear velocity saturated: {msg.linear.x:.3f} → {bounded_linear:.3f}"
+                "Actuation safety clamp triggered "
+                f"(requested lin={msg.linear.x:.3f}, ang={msg.angular.z:.3f})"
             )
 
-        if ang_saturated:
-            self.get_logger().warn(
-                f"Angular velocity saturated: {msg.angular.z:.3f} → {bounded_angular:.3f}"
-            )
-
-        self.get_logger().info(
+        self.get_logger().debug(
             f"Cmd received | lin={msg.linear.x:.3f}, ang={msg.angular.z:.3f} "
             f"→ bounded | lin={bounded_linear:.3f}, ang={bounded_angular:.3f}"
         )
@@ -94,11 +93,23 @@ class ActuationNode(Node):
 
             self.robot_stopped = True
 
+    # Command rate monitoring
+
+    def report_rate(self):
+        self.get_logger().info(f"Command rate: {self.cmd_counter} Hz")
+        self.cmd_counter = 0
+
 
 def main(args=None):
     rclpy.init(args=args)
+
     node = ActuationNode()
-    rclpy.spin(node)
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+
     node.destroy_node()
     rclpy.shutdown()
 
