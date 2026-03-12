@@ -1,3 +1,4 @@
+from pathlib import Path
 import rclpy
 from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
@@ -31,6 +32,8 @@ Y_OFFSET = +0.0
 
 DEBUG = False
 
+current_file_path = Path(__file__).resolve()
+project_folder = current_file_path.parents[2]
 
 class Turtlebot(Node):
     def __init__(self, goal_location, goal_r, model_mismatch) -> None:
@@ -39,17 +42,17 @@ class Turtlebot(Node):
 
         if model_mismatch:
             self.brt = np.load(
-                "./redexp/brts/turtlebot_2_brt_speed_06_wMax_06_dstb.npy"
+                project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_06_dstb.npy"
             )
             self.dyn = turtlebot_2_model_mismatch
         else:
             self.brt = np.load(
-                "./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
+                project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
             )
             self.dyn = turtlebot_2_no_model_mismatch
 
         self.true_brt = np.load(
-            "./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
+            project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
         )
         self.grid = grid
 
@@ -133,7 +136,7 @@ class TurtleBotMonitor(Node):
         self.get_logger().info("Initialized turtlebot_monitor_node")
 
         self.grid = grid
-        self.brt = np.load("./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy")
+        self.brt = np.load(project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy")
 
         self.sub = self.create_subscription(
             TransformStamped,

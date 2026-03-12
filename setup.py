@@ -32,7 +32,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            "safe_rl_robot_node = redexp.robots.turtlebot:main",
+            "monitor_node = redexp.robots.turtlebot:main",
         ],
     },
 )
