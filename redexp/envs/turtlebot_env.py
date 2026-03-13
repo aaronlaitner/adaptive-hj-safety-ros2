@@ -11,17 +11,17 @@ import rclpy
 
 
 class TurtlebotEnv(gym.Env):
-    def __init__(self, goal_conditioned=False, model_mismatch=False):
+    def __init__(self, goal_conditioned=False, model_mismatch=False, use_gazebo=False):
         self.goal_conditioned = goal_conditioned
 
-        self.goal_location = np.array([1.75, 1.25], dtype=np.float32)
+        self.goal_location = np.array([1.75, -1.25], dtype=np.float32)
         self.goal_r = 0.15
 
-        rclpy.init()
         self.turtlebot = Turtlebot(
             goal_location=self.goal_location,
             goal_r=self.goal_r,
             model_mismatch=model_mismatch,
+            use_gazebo=use_gazebo,
         )
         self.state = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 

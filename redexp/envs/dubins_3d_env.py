@@ -2,6 +2,7 @@ import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from pathlib import Path
 
 from redexp.config.dubins_3d import OBSTACLE_RADIUS
 from redexp.utils import normalize_angle
@@ -16,6 +17,9 @@ from redexp.brts.dubins_3d import (
     grid,
 )
 
+
+current_file_path = Path(__file__).resolve()
+project_folder = current_file_path.parents[2]
 
 class Dubins3dEnv(gym.Env):
     metadata = {
@@ -60,11 +64,11 @@ class Dubins3dEnv(gym.Env):
         ], "unknown brt"
 
         if brt == "dubins_3d_omega_0_25":
-            self.brt = np.load("./redexp/brts/dubins_3d_omega_0_25_brt.npy")
+            self.brt = np.load(project_folder / "redexp/brts/dubins_3d_omega_0_25_brt.npy")
         elif brt == "dubins_3d_omega_0_5":
-            self.brt = np.load("./redexp/brts/dubins_3d_omega_0_5_brt.npy")
+            self.brt = np.load(project_folder / "redexp/brts/dubins_3d_omega_0_5_brt.npy")
         elif brt == "dubins_3d_omega_0_75":
-            self.brt = np.load("./redexp/brts/dubins_3d_omega_0_75_brt.npy")
+            self.brt = np.load(project_folder / "redexp/brts/dubins_3d_omega_0_75_brt.npy")
 
         self.state = np.array([0.0, 0.0, 0.0], dtype=np.float32)
         self.dt = 0.05

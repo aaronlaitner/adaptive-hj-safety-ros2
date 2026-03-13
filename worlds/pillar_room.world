@@ -9,43 +9,51 @@
       <uri>model://ground_plane</uri>
     </include>
 
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <ros>
+        <namespace>/gazebo</namespace>
+      </ros>
+
+      <update_rate>30.0</update_rate>
+    </plugin>
+
     <model name="room_walls">
       <static>true</static>
       <link name="link">
         <visual name="north_wall">
-          <pose>6 0 0.5 0 0 0</pose>
-          <geometry><box><size>0.1 12 1</size></box></geometry>
+          <pose>3 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.1 6 1</size></box></geometry>
         </visual>
         <collision name="north_wall_col">
-          <pose>6 0 0.5 0 0 0</pose>
-          <geometry><box><size>0.1 12 1</size></box></geometry>
+          <pose>3 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.1 6 1</size></box></geometry>
         </collision>
 
         <visual name="south_wall">
-          <pose>-6 0 0.5 0 0 0</pose>
-          <geometry><box><size>0.1 12 1</size></box></geometry>
+          <pose>-3 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.1 6 1</size></box></geometry>
         </visual>
         <collision name="south_wall_col">
-          <pose>-6 0 0.5 0 0 0</pose>
-          <geometry><box><size>0.1 12 1</size></box></geometry>
+          <pose>-3 0 0.5 0 0 0</pose>
+          <geometry><box><size>0.1 6 1</size></box></geometry>
         </collision>
 
         <visual name="east_wall">
-          <pose>0 6 0.5 0 0 0</pose>
-          <geometry><box><size>12 0.1 1</size></box></geometry>
+          <pose>0 3 0.5 0 0 0</pose>
+          <geometry><box><size>6 0.1 1</size></box></geometry>
         </visual>
         <collision name="east_wall_col">
-          <pose>0 6 0.5 0 0 0</pose>
-          <geometry><box><size>12 0.1 1</size></box></geometry>
+          <pose>0 3 0.5 0 0 0</pose>
+          <geometry><box><size>6 0.1 1</size></box></geometry>
         </collision>
 
         <visual name="west_wall">
-          <pose>0 -6 0.5 0 0 0</pose>
-          <geometry><box><size>12 0.1 1</size></box></geometry>
+          <pose>0 -3 0.5 0 0 0</pose>
+          <geometry><box><size>6 0.1 1</size></box></geometry>
         </visual>
         <collision name="west_wall_col">
-          <pose>0 -6 0.5 0 0 0</pose>
-          <geometry><box><size>12 0.1 1</size></box></geometry>
+          <pose>0 -3 0.5 0 0 0</pose>
+          <geometry><box><size>6 0.1 1</size></box></geometry>
         </collision>
       </link>
     </model>
@@ -57,7 +65,7 @@
         <collision name="collision">
           <geometry>
             <cylinder>
-              <radius>1.0</radius> 
+              <radius>0.36</radius> 
               <length>1.0</length>
             </cylinder>
           </geometry>
@@ -65,7 +73,7 @@
         <visual name="visual">
           <geometry>
             <cylinder>
-              <radius>1.0</radius>
+              <radius>0.36</radius>
               <length>1.0</length>
             </cylinder>
           </geometry>
