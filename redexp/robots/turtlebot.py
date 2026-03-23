@@ -164,7 +164,7 @@ class Turtlebot():
 
         if DEBUG:
             value = grid.get_value(self.brt, state)
-            print(f"DEBUG: {action=} {value=}")
+            print(f"DEBUG: {action=} {value=} {state=}")
 
     def in_bounds(self, state=None):
         if state is None:
@@ -202,6 +202,7 @@ class TurtlebotController(Node):
 
         self.control_shm = control_shm
         self.state_shm = state_shm
+        self.stopped = False
 
         # periodically publish the control
         hz = 50.0
@@ -236,9 +237,17 @@ class TurtlebotController(Node):
     
     def update_state(self, msg):
         self.state_shm[:] = self._get_state(msg)
+        # self.get_logger().info(f"Robot state: {self.state_shm[:]}")
     
     def control_timer_callback(self):
         action = self.control_shm[:]
+
+        # to allow teleop when robot needs to be manually moved
+        should_stop = action == [0.0, 0.0, 0.0]
+        if should_stop and self.stopped:
+            return
+        self.stopped = should_stop
+
         # # debug
         # if (np.random.random() < 0.01):
         #     self.get_logger().info(f"Action: {action}")

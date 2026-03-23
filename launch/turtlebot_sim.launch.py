@@ -20,7 +20,7 @@ DEFAULT_PARAMS_FILES = {
         "pillar_room.yaml",
     ),
     "world_file": os.path.join(
-        get_package_share_directory("safe_rl_py"), "worlds", "pillar_room.world"
+        get_package_share_directory("safe_rl_py"), "worlds", "pillar_room_big.world"
     ),
 }
 
