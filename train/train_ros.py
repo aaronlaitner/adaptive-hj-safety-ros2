@@ -149,7 +149,7 @@ def main(_):
 
             if FLAGS.cbf:
                 wandb.log(
-                    {f"training/maximum_slack": env.hj_cbf_qp_solver.maximum_slack},
+                    {f"training/maximum_slack": env.get_wrapper_attr('hj_cbf_qp_solver').maximum_slack},
                     step=i,
                 )
 

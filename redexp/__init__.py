@@ -27,3 +27,10 @@ register(
     max_episode_steps=1000,
     kwargs={"model_mismatch": True},
 )
+
+register(
+    id="TurtlebotEnvGazebo-ModelMismatch-v1",
+    entry_point="redexp.envs:TurtlebotEnv",
+    max_episode_steps=1000,
+    kwargs={"goal_conditioned":True, "model_mismatch": True, "use_gazebo": True},
+)

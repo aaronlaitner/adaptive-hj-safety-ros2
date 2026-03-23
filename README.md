@@ -66,6 +66,18 @@ python train/train_sac_lag.py \
     --max_steps=10000 \
     --seed=0
 ```
+
+# Simulation Training (Turtlebot - Gazebo)
+```
+python3 train/train_ros.py \
+    --config train/droq_config.py \
+    --env_name=TurtlebotEnvGazebo-ModelMismatch-v1 \
+    --cbf \
+    --cbf_gamma=1.0 \
+    --max_steps=10000 \
+    --seed=0
+```
+
 ## Attribution and Prior Work
 
 This project is adapted from and builds upon:

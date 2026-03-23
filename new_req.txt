@@ -1,0 +1,14 @@
+gymnasium
+tqdm
+wandb
+absl-py
+ml-collections
+jax
+optax
+flax
+gym
+distrax
+cvxpy
+transforms3d
+pandas
+ecos
