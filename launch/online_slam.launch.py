@@ -20,13 +20,13 @@ def generate_launch_description():
 
     
     # Exports the SLAM map and pose estimates to ROS topics, which can be visualized in RViz2 or used by other nodes.
-    start_async_slam_toolbox_node = Node(
+    start_sync_slam_toolbox_node = Node(
         parameters=[
             slam_config_file,
             {'use_sim_time': use_sim_time}
         ],
         package='slam_toolbox',
-        executable='async_slam_toolbox_node',
+        executable='sync_slam_toolbox_node', # Switched from async to sync
         name='slam_toolbox',
         output='screen'
     )
@@ -48,6 +48,6 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='Use simulation (Gazebo) clock if true'),
-        start_async_slam_toolbox_node,
+        start_sync_slam_toolbox_node,  # <--- Fixed this line
         start_rviz
     ])
