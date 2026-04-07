@@ -52,7 +52,7 @@ class NNDataCollector(Node):
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.amcl_sub, self.dubins_sub, self.teleop_sub], # <-- Added teleop_sub
             queue_size=100, 
-            slop=0.05,
+            slop=0.1,
             # allow_headerless=True is required because Twist and Float64MultiArray 
             # don't have built-in timestamp headers; sync relies on arrival time.
             allow_headerless=True 
@@ -67,7 +67,7 @@ class NNDataCollector(Node):
         Triggered only when messages from all THREE topics arrive within the 'slop' time window.
         """
         # --- Extract Time ---
-        timestamp = amcl_msg.header.stamp.sec + (amcl_msg.header.stamp.nanosec * 1e-5)
+        timestamp = amcl_msg.header.stamp.sec + (amcl_msg.header.stamp.nanosec * 1e-9)
 
         # --- Extract AMCL Data ---
         amcl_x = amcl_msg.pose.pose.position.x

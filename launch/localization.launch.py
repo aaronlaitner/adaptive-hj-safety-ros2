@@ -16,19 +16,19 @@ def generate_launch_description():
         'dam_good_map.yaml'
     )
 
-    # # Path to your robot's URDF/Xacro file
-    # pkg_path = get_package_share_directory('safe_rl_py')
-    # xacro_file = os.path.join(pkg_path, 'description', 'robot.urdf.xacro')
-    # robot_description_config = xacro.process_file(xacro_file)
+    # Path to your robot's URDF/Xacro file
+    pkg_path = get_package_share_directory('safe_rl_py')
+    xacro_file = os.path.join(pkg_path, 'description', 'robot.urdf.xacro')
+    robot_description_config = xacro.process_file(xacro_file)
 
-    # # The Robot State Publisher Node
-    # params = {'robot_description': robot_description_config.toxml(), 'use_sim_time': use_sim_time}
-    # node_robot_state_publisher = Node(
-    #     package='robot_state_publisher',
-    #     executable='robot_state_publisher',
-    #     output='screen',
-    #     parameters=[params]
-    # )
+    # The Robot State Publisher Node
+    params = {'robot_description': robot_description_config.toxml(), 'use_sim_time': use_sim_time}
+    node_robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        parameters=[params]
+    )
 
     # 1. Map Server
     map_server_node = Node(
@@ -88,5 +88,5 @@ def generate_launch_description():
         amcl_node,
         lifecycle_manager_node,
         rviz_node,
-        #node_robot_state_publisher
+        node_robot_state_publisher
     ])
