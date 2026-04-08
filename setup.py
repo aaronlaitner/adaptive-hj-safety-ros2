@@ -35,7 +35,8 @@ setup(
     entry_points={
         'console_scripts': [
             "monitor_node = redexp.robots.turtlebot:main",
-            "robot_pose_publisher = robot_pose_publisher.robot_pose_publisher:main",
+            "nn_data_collector = data_collect.collect_telemetry_data:main",
+            'odom_proxy = data_collect.odom_proxy:main',
         ],
     },
 )
