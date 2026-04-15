@@ -29,8 +29,17 @@ register(
 )
 
 register(
-    id="TurtlebotEnvGazebo-ModelMismatch-v1",
+    id="Turtlebot3BgEnvGazebo-ModelMismatch-v1",
     entry_point="redexp.envs:TurtlebotEnv",
     max_episode_steps=1000,
-    kwargs={"goal_conditioned":True, "model_mismatch": True, "use_gazebo": True},
+    kwargs={"goal_conditioned":True, "model_mismatch": True, "env_type": "gazebo",
+            "robot_type": "tb3_bg"},
+)
+
+register(
+    id="Turtlebot3BgEnvAmcl-ModelMismatch-v1",
+    entry_point="redexp.envs:TurtlebotEnv",
+    max_episode_steps=1000,
+    kwargs={"goal_conditioned":True, "model_mismatch": True, "env_type": "irl", 
+            "robot_type": "tb3_bg"},
 )

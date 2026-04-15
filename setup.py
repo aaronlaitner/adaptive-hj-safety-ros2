@@ -19,7 +19,8 @@ setup(
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
         (os.path.join("share", package_name, "rviz"), glob("rviz/*")),
         (os.path.join("share", package_name, "params"), glob("params/*")),
-        (os.path.join('share', package_name, 'description'), glob('description/*'))
+        (os.path.join('share', package_name, 'description'), glob('description/*')),
+        (os.path.join('share', package_name, 'brts'), glob('redexp/brts/*.npy')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

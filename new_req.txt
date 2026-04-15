@@ -6,9 +6,9 @@ ml-collections
 jax
 optax
 flax
-gym
 distrax
 cvxpy
-transforms3d
+transforms3d>=0.4
 pandas
 ecos
+numpy
