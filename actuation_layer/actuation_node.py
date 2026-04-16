@@ -27,6 +27,12 @@ class ActuationNode(Node):
     def __init__(self):
         super().__init__('actuation_node')
 
+        # Mode switching
+        self.mode = "adaptive"  # "baseline" or "adaptive"
+
+        # Safety scaling
+        self.safety_scale = 1.0
+
         self.subscription = self.create_subscription(
             Twist, '/safe_cmd', self.safe_callback, 10
         )
@@ -73,15 +79,17 @@ class ActuationNode(Node):
             "error_x", "error_y", "error_theta",
             "mismatch_flag",
             "mismatch_score",
-            "confidence"
+            "confidence",
+            "mode",
+            "correction_linear",
+            "correction_angular",
+            "safety_scale"
         ])
 
         self.log_file.flush()
 
-        self.get_logger().info("Actuation node with adaptive mismatch system started")
-        self.get_logger().info(f"Logging to {self.log_path}")
+        self.get_logger().info("Final Actuation Node (Week 4+5+6) Started")
 
-    # CLAMP FUNCTION
     def clamp_with_flag(self, value, max_value):
         if value > max_value:
             return max_value, True
@@ -89,7 +97,6 @@ class ActuationNode(Node):
             return -max_value, True
         return value, False
 
-    # ODOM CALLBACK
     def odom_callback(self, msg):
         self.x = msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
@@ -99,7 +106,6 @@ class ActuationNode(Node):
         cosy = 1.0 - 2.0 * (q.y*q.y + q.z*q.z)
         self.theta = math.atan2(siny, cosy)
 
-    # MAIN CALLBACK
     def safe_callback(self, msg):
 
         self.last_cmd_time = self.get_clock().now()
@@ -107,33 +113,24 @@ class ActuationNode(Node):
         self.cmd_counter += 1
 
         # Clamp commands
-        bounded_linear, lin_sat = self.clamp_with_flag(msg.linear.x, MAX_LINEAR)
-        bounded_angular, ang_sat = self.clamp_with_flag(msg.angular.z, MAX_ANGULAR)
+        bounded_linear, _ = self.clamp_with_flag(msg.linear.x, MAX_LINEAR)
+        bounded_angular, _ = self.clamp_with_flag(msg.angular.z, MAX_ANGULAR)
 
         bounded_msg = Twist()
         bounded_msg.linear.x = bounded_linear
         bounded_msg.angular.z = bounded_angular
 
-        if lin_sat or ang_sat:
-            self.get_logger().warn(
-                f"Clamp triggered | lin={msg.linear.x:.3f}, ang={msg.angular.z:.3f}"
-            )
-       
         timestamp = self.get_clock().now().nanoseconds / 1e9
 
-        if self.prev_time is None:
-            dt = 0.0
-        else:
-            dt = timestamp - self.prev_time
-
+        dt = 0.0 if self.prev_time is None else timestamp - self.prev_time
         self.prev_time = timestamp
 
-        # EXPECTED MOTION MODEL
+        # EXPECTED MODEL
         expected_x = self.prev_x + bounded_linear * math.cos(self.prev_theta) * dt
         expected_y = self.prev_y + bounded_linear * math.sin(self.prev_theta) * dt
         expected_theta = self.prev_theta + bounded_angular * dt
 
-        # ERROR COMPUTATION
+        # ERRORS
         error_x = self.x - expected_x
         error_y = self.y - expected_y
         error_theta = self.theta - expected_theta
@@ -145,32 +142,48 @@ class ActuationNode(Node):
             abs(error_theta) > ERROR_THRESHOLD_THETA
         )
 
-        # MISMATCH SCORE (continuous)
-        error_norm = math.sqrt(
-            error_x**2 + error_y**2 + error_theta**2
+        # MISMATCH SCORE 
+        mismatch_score = (
+            0.4 * abs(error_x) +
+            0.4 * abs(error_y) +
+            0.2 * abs(error_theta)
         )
 
-        mismatch_score = min(error_norm / MAX_ERROR_FOR_NORMALIZATION, 1.0)
+        mismatch_score = min(mismatch_score / MAX_ERROR_FOR_NORMALIZATION, 1.0)
         confidence = 1.0 - mismatch_score
 
-        # ADAPTIVE RESPONSE
-        if mismatch:
-
-            scale = max(1.0 - mismatch_score, MIN_SCALE)
-
-            safe_msg = Twist()
-            safe_msg.linear.x = bounded_linear * scale
-            safe_msg.angular.z = bounded_angular * scale
-
-            self.get_logger().warn(
-                f"[ADAPTIVE SAFETY] score={mismatch_score:.3f} | "
-                f"scale={scale:.3f} | confidence={confidence:.3f}"
-            )
-
-            self.publisher.publish(safe_msg)
-
+        # Safety filter adaptation
+        if mismatch_score > 0.5:
+            self.safety_scale = 0.5
+        elif mismatch_score > 0.2:
+            self.safety_scale = 0.7
         else:
+            self.safety_scale = 1.0
+
+        # Active compensation
+        Kp_pos = 0.5
+        Kp_theta = 1.0
+
+        position_error = math.sqrt(error_x**2 + error_y**2)
+
+        correction_linear = Kp_pos * position_error
+        correction_angular = Kp_theta * error_theta
+
+        scale = max(1.0 - mismatch_score, MIN_SCALE)
+
+        safe_msg = Twist()
+        safe_msg.linear.x = (bounded_linear * scale + correction_linear) * self.safety_scale
+        safe_msg.angular.z = (bounded_angular * scale + correction_angular) * self.safety_scale
+
+        # MODE SWITCH
+        if self.mode == "baseline":
             self.publisher.publish(bounded_msg)
+
+        elif self.mode == "adaptive":
+            if mismatch:
+                self.publisher.publish(safe_msg)
+            else:
+                self.publisher.publish(bounded_msg)
 
         # LOGGING
         self.csv_writer.writerow([
@@ -188,51 +201,44 @@ class ActuationNode(Node):
             error_theta,
             int(mismatch),
             mismatch_score,
-            confidence
+            confidence,
+            self.mode,
+            correction_linear,
+            correction_angular,
+            self.safety_scale
         ])
 
         self.log_file.flush()
 
-        # Update previous state
         self.prev_x = self.x
         self.prev_y = self.y
         self.prev_theta = self.theta
 
-    # TIMEOUT SAFETY
     def check_timeout(self):
         now = self.get_clock().now()
         elapsed = (now - self.last_cmd_time).nanoseconds / 1e9
 
         if elapsed > CMD_TIMEOUT and not self.robot_stopped:
-            stop_msg = Twist()
-            self.publisher.publish(stop_msg)
-
-            self.get_logger().warn(f"Timeout ({elapsed:.2f}s) → stopping robot")
+            self.publisher.publish(Twist())
             self.robot_stopped = True
 
-    # RATE MONITOR
     def report_rate(self):
         self.get_logger().info(f"Command rate: {self.cmd_counter} Hz")
         self.cmd_counter = 0
 
-def main(args=None):
 
+def main(args=None):
     rclpy.init(args=args)
     node = ActuationNode()
 
     try:
         rclpy.spin(node)
-
     except KeyboardInterrupt:
         pass
-
     finally:
-        node.get_logger().info("Shutting down actuation node.")
         node.log_file.close()
         node.destroy_node()
-
-        if rclpy.ok():
-            rclpy.shutdown()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
