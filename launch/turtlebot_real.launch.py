@@ -79,15 +79,18 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             'use_sim_time': False,
             'set_initial_pose': True,
-            'initial_pose_x': 0.0,
-            'initial_pose_y': -2.0,
-            'initial_pose_yaw': 0.0,
+            'initial_pose': {
+                'x': 0.6,
+                'y': -0.8,
+                'z': 0.01,
+                'yaw': 1.57,
+            },
             'transform_tolerance': 0.6, # <--- Add this (increased from default 0.1)
             'global_frame_id': 'map',
             'odom_frame_id': 'odom',
             'base_frame_id': 'base_link',
-            'update_min_d': 0.1,        # Update filter after 10cm movement
-            'update_min_a': 0.1         # Update filter after ~11 deg rotation
+            'update_min_d': 0.0,        # Update filter after 10cm movement
+            'update_min_a': 0.0,         # Update filter after ~11 deg rotation
         }]
     )
 
