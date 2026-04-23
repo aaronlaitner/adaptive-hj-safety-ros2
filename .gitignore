@@ -177,4 +177,12 @@ wandb/
 # External libraries
 optimized_dp/
 
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# Runtime logs (your Week 3 output)
+logs/
+*.csv
 .vscode
