@@ -22,15 +22,12 @@ DEFAULT_PARAMS_FILES = {
     "map_file": os.path.join(
         get_package_share_directory("safe_rl_py"),
         "maps",
-        "pillar_room.yaml",
+        "dam_good_map.yaml",
     ),
     "rviz_settings": os.path.join(
         get_package_share_directory("safe_rl_py"),
         "rviz",
         "sim_srl_settings.rviz",
-    ),
-    "world_file": os.path.join(
-        get_package_share_directory("safe_rl_py"), "worlds", "pillar_room.world"
     ),
 }
 
@@ -43,13 +40,12 @@ def launch_setup(context, *args, **kwargs):
     map_file = LaunchConfiguration("map_file").perform(context)
     rviz_settings_file = LaunchConfiguration("rviz_settings_file").perform(context)
 
-    world = LaunchConfiguration("world")
 
     map_server_node = Node(
         package="nav2_map_server",
         executable="map_server",
         output="screen",
-        parameters=[{"use_sim_time": True}, {"yaml_filename": map_file}],
+        parameters=[{"use_sim_time": False}, {"yaml_filename": map_file}],
     )
 
     lifecycle_manager_node = Node(
@@ -59,7 +55,7 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
         emulate_tty=True,  # https://github.com/ros2/launch/issues/188
         parameters=[
-            {"use_sim_time": True},
+            {"use_sim_time": False},
             {"autostart": True},
             {"node_names": ["map_server", "amcl",]},
         ],
@@ -69,33 +65,33 @@ def launch_setup(context, *args, **kwargs):
         package="rviz2",
         executable="rviz2",
         parameters=[
-            {"use_sim_time": True},
+            {"use_sim_time": False},
         ],
         arguments=["-d" + rviz_settings_file],
         output={"both": "log"},
     )
 
     amcl_node = Node(
-        package="nav2_amcl",
-        executable="amcl",
-        name="amcl",
-        output="screen",
-        respawn_delay=2.0,
-        parameters=[
-            nav2_params_file,
-            {
-                "save_pose_rate": 5.0,
-                "update_min_a": 0.0,
-                "update_min_d": 0.0,
-                "tf_broadcast": True,
-                "set_initial_pose": True,
-                "initial_pose.x": -1.5,
-                "initial_pose.y": 2.5,
-                "initial_pose.z": 0.0,
-                "initial_pose.yaw": 0.0,
-                "use_sim_time": True,
+        package='nav2_amcl',
+        executable='amcl',
+        name='amcl',
+        output='screen',
+        parameters=[{
+            'use_sim_time': False,
+            'set_initial_pose': True,
+            'initial_pose': {
+                'x': 0.6,
+                'y': -0.8,
+                'z': 0.01,
+                'yaw': 1.57,
             },
-        ],
+            'transform_tolerance': 0.6, # <--- Add this (increased from default 0.1)
+            'global_frame_id': 'map',
+            'odom_frame_id': 'odom',
+            'base_frame_id': 'base_link',
+            'update_min_d': 0.0,        # Update filter after 10cm movement
+            'update_min_a': 0.0,         # Update filter after ~11 deg rotation
+        }]
     )
 
     urdf = os.path.join(tb3_gazebo_dir, "urdf", "turtlebot3_burger.urdf")
@@ -107,65 +103,10 @@ def launch_setup(context, *args, **kwargs):
         executable="robot_state_publisher",
         name="robot_state_publisher",
         output="screen",
-        parameters=[{"use_sim_time": True, "robot_description": robot_description}],
-    )
-
-    gazebo_server = ExecuteProcess(
-        cmd=[
-            "gzserver",
-            "-s",
-            "libgazebo_ros_init.so",
-            "-s",
-            "libgazebo_ros_factory.so",
-            world,
-        ],
-        cwd=[nav2_bringup_launch_dir],
-        output="screen",
-    )
-
-    gazebo_client = ExecuteProcess(
-        cmd=["gzclient"],
-        cwd=[nav2_bringup_launch_dir],
-        output="screen",
-    )
-
-    pose = {
-        "x": LaunchConfiguration("x_pose", default="-0.75"),
-        "y": LaunchConfiguration("y_pose", default="0.75"),
-        "z": LaunchConfiguration("z_pose", default="0.01"),
-        "R": LaunchConfiguration("roll", default="0.0"),
-        "P": LaunchConfiguration("pitch", default="0.0"),
-        "Y": LaunchConfiguration("yaw", default="0.0"),
-    }
-
-    gazebo_spawner = Node(
-        package="gazebo_ros",
-        executable="spawn_entity.py",
-        output="screen",
-        arguments=[
-            "-entity",
-            "tb3_burger",
-            "-file",
-            os.path.join(tb3_gazebo_dir, "models", "turtlebot3_burger", "model.sdf"),
-            "-x",
-            pose["x"],
-            "-y",
-            pose["y"],
-            "-z",
-            pose["z"],
-            "-R",
-            pose["R"],
-            "-P",
-            pose["P"],
-            "-Y",
-            pose["Y"],
-        ],
+        parameters=[{"use_sim_time": False, "robot_description": robot_description}],
     )
 
     return [
-        gazebo_server,
-        gazebo_client,
-        gazebo_spawner,
         robot_state_publisher,
         map_server_node,
         lifecycle_manager_node,
@@ -186,11 +127,6 @@ def generate_launch_description():
                 "map_file",
                 default_value=DEFAULT_PARAMS_FILES["map_file"],
                 description="Map file to use",
-            ),
-            DeclareLaunchArgument(
-                "world",
-                default_value=DEFAULT_PARAMS_FILES["world_file"],
-                description="Full path to world model file to load",
             ),
             DeclareLaunchArgument(
                 "rviz_settings_file",

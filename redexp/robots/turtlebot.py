@@ -1,14 +1,20 @@
-from pathlib import Path
+import os
+
 import rclpy
 from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
-from geometry_msgs.msg import Twist, Vector3
-from geometry_msgs.msg import TransformStamped
+from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import (
+    Twist, 
+    TransformStamped,
+    PoseWithCovarianceStamped,
+)
 from gazebo_msgs.msg import ModelStates
 from tf_transformations import (
     quaternion_from_euler, 
     quaternion_multiply, 
     euler_from_quaternion)
+
 from time import sleep
 import numpy as np
 
@@ -18,33 +24,21 @@ from multiprocessing import (
 )
 from ctypes import c_float
 
-from redexp.brts.turtlebot_brt import (
-    grid,
-    turtlebot_2_no_model_mismatch,
-    turtlebot_2_model_mismatch,
-)
+from redexp.brts.export import BRT_CONFIG
 
-from redexp.config.turtlebot import (
-    TASC_7001_X_BOUNDARY_LOWER,
-    TASC_7001_X_BOUNDARY_UPPER,
-    TASC_7001_Y_BOUNDARY_LOWER,
-    TASC_7001_Y_BOUNDARY_UPPER,
-    RADIUS,
-    OBSTACLE_RADIUS,
-)
+from redexp.config.turtlebot import TB_CONFIG
 
+# TOPICS
 VICON_TOPIC = "/vicon/ml_turtlebot_2/turtlebot_2"
 GAZEBO_STATE_TOPIC = "/gazebo/model_states"
 VALUE_TOPIC = "/turtlebot/value"
 
+DEBUG = False
+
+# VICON LEGACY
 ROTATION_OFFSET = -np.pi / 32
 X_OFFSET = +0.0
 Y_OFFSET = +0.0
-
-DEBUG = False
-
-current_file_path = Path(__file__).resolve()
-project_folder = current_file_path.parents[2]
 
 def state_from_tf_msg(ts_msg):
     pose = ts_msg.transform
@@ -57,7 +51,6 @@ def state_from_tf_msg(ts_msg):
     theta = calculate_heading(pose)
 
     return np.array([x, y, theta])
-
 def calculate_heading(pose):
     x = pose.rotation.x
     y = pose.rotation.y
@@ -74,6 +67,7 @@ def calculate_heading(pose):
 
     roll, pitch, yaw = euler_from_quaternion(quaternion)
     return yaw
+# end of VICON LEGACY
 
 def state_from_gazebo_msg(msg):
     try:
@@ -90,25 +84,72 @@ def state_from_gazebo_msg(msg):
     ])
     return np.array([x, y, theta])
 
-class Turtlebot():
-    def __init__(self, goal_location, goal_r, model_mismatch, use_gazebo) -> None:
-        self.state = np.array([0.0, 0.0, 0.0])
+def state_from_amcl_msg(msg):
+    state = msg.pose.pose
+    x = state.position.x
+    y = state.position.y
+    _, _, theta = euler_from_quaternion([
+        state.orientation.x,
+        state.orientation.y,
+        state.orientation.z,
+        state.orientation.w,
+    ])
+    return np.array([x, y, theta])
 
+# Organized arguments
+VICON_PARAMS = {
+    'state_msg_type': TransformStamped,
+    'state_topic': VICON_TOPIC,
+    'state_msg_fn': state_from_tf_msg,
+    'ctrl_pub_topic': "/cmd_vel_mux/input/teleop",
+}
+
+GAZEBO_PARAMS = {
+    'state_msg_type': ModelStates,
+    'state_topic': GAZEBO_STATE_TOPIC,
+    'state_msg_fn': state_from_gazebo_msg,
+    'ctrl_pub_topic': "/cmd_vel",
+}
+
+# AMCL params
+IRL_PARAMS = {
+    'state_msg_type': PoseWithCovarianceStamped,
+    'state_topic': "/amcl_pose",
+    'state_msg_fn': state_from_amcl_msg,
+    'ctrl_pub_topic': "/cmd_vel",
+}
+
+param_map = {
+    "default": IRL_PARAMS,
+    "vicon": VICON_PARAMS,
+    "gazebo": GAZEBO_PARAMS,
+    "irl": IRL_PARAMS,
+}
+# end of organized arguments
+
+class Turtlebot():
+    def __init__(self, goal_location, goal_r, model_mismatch, env_type, robot_type) -> None:
+        self.state = np.array([0.0, 0.0, 0.0])
+        
+        self.tb_cfg = TB_CONFIG.get(robot_type, TB_CONFIG["default"])
+        brt_cfg = BRT_CONFIG.get(robot_type, BRT_CONFIG["default"])
+
+        share_folder = get_package_share_directory("safe_rl_py")
         if model_mismatch:
             self.brt = np.load(
-                project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_06_dstb.npy"
+                os.path.join(share_folder, "brts", brt_cfg['brt_mismatch_file'])
             )
-            self.dyn = turtlebot_2_model_mismatch
+            self.dyn = brt_cfg['dyn_mistmatch']
         else:
             self.brt = np.load(
-                project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
+                os.path.join(share_folder, "brts", brt_cfg['brt_no_mismatch_file'])
             )
-            self.dyn = turtlebot_2_no_model_mismatch
+            self.dyn = brt_cfg['dyn_no_mistmatch']
 
         self.true_brt = np.load(
-            project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
+            os.path.join(share_folder, "brts", brt_cfg['brt_no_mismatch_file'])
         )
-        self.grid = grid
+        self.grid = brt_cfg['grid']
 
         self.goal_location = goal_location
         self.goal_r = goal_r
@@ -120,7 +161,7 @@ class Turtlebot():
         # start the controller node
         self.spin_subprocess = Process(
             target=self._spin_controller, 
-            args=(use_gazebo,))
+            args=(env_type,))
         self.spin_subprocess.start()
         
     def __del__(self):
@@ -160,25 +201,29 @@ class Turtlebot():
             self.control_shm[:] = [0.0, 0.0]
         else:
             # linear velocity is constant
-            self.control_shm[:] = [0.2, action[0]]
+            self.control_shm[:] = [self.tb_cfg['SPEED'], action[0]]
 
         if DEBUG:
-            value = grid.get_value(self.brt, state)
+            value = self.grid.get_value(self.brt, state)
             print(f"DEBUG: {action=} {value=} {state=}")
+
+    def stop(self):
+        self.control_shm[:] = [0.0, 0.0]
 
     def in_bounds(self, state=None):
         if state is None:
             state = self.get_state()
         x, y, _ = state
         return (
-            TASC_7001_X_BOUNDARY_LOWER <= x <= TASC_7001_X_BOUNDARY_UPPER
-            and TASC_7001_Y_BOUNDARY_LOWER <= y <= TASC_7001_Y_BOUNDARY_UPPER
+            self.tb_cfg['X_BOUNDARY_LOWER'] <= x <= self.tb_cfg['X_BOUNDARY_UPPER']
+            and self.tb_cfg['Y_BOUNDARY_LOWER'] <= y <= self.tb_cfg['Y_BOUNDARY_UPPER']
         )
 
     def _near_obs(self, state=None):
         if state is None:
             state = self.get_state()
-        reached_goal = np.linalg.norm(state[:2]) < (RADIUS + OBSTACLE_RADIUS)
+        reached_goal = np.linalg.norm(state[:2]) < (
+            self.tb_cfg['RADIUS'] + self.tb_cfg['OBSTACLE_RADIUS'])
         return reached_goal
 
     def reach_goal(self, state=None):
@@ -192,11 +237,11 @@ class Turtlebot():
     def get_brt_value(self, state=None):
         if state is None:
             state = self.get_state()
-        value = grid.get_value(self.true_brt, state)
+        value = self.grid.get_value(self.true_brt, state)
         return value
 
 class TurtlebotController(Node):
-    def __init__(self, control_shm, state_shm, use_gazebo=False):
+    def __init__(self, control_shm, state_shm, env_type="default"):
         # Ros2 infra
         super().__init__("turlebot_controller_node")
 
@@ -205,33 +250,23 @@ class TurtlebotController(Node):
         self.stopped = False
 
         # periodically publish the control
-        hz = 50.0
-        self.create_timer(1.0 / hz, self.control_timer_callback)
+        hz = 20.0
+        self.ctrl_timer = self.create_timer(1.0 / hz, self.control_timer_callback)
         
         # get states from topic of choice,
         # publish to corresponding topic
-        if not use_gazebo:
-            self.get_logger().info("Turtlebot controller using VICON")
-            self.create_subscription(
-                TransformStamped,
-                VICON_TOPIC,
-                self.update_state,
-                10
-            )
-            self._get_state = state_from_tf_msg
+        env_params = param_map.get(env_type)
 
-            self.pub = self.create_publisher(Twist, "/cmd_vel_mux/input/teleop", 1)
-        else:
-            self.get_logger().info("Turtlebot controller using Gazebo")
-            self.create_subscription(
-                ModelStates,
-                GAZEBO_STATE_TOPIC,
-                self.update_state,
-                10
-            )
-            self._get_state = state_from_gazebo_msg
+        self.get_logger().info(f"Turtlebot controller using: {env_type=}. Environment params:\n{env_params}")
+        self.create_subscription(
+            env_params['state_msg_type'],
+            env_params['state_topic'],
+            self.update_state,
+            10
+        )
+        self._get_state = env_params['state_msg_fn']
 
-            self.pub = self.create_publisher(Twist, "/cmd_vel", 1)
+        self.pub = self.create_publisher(Twist, env_params['ctrl_pub_topic'], 10)
 
         self.get_logger().info("Initialized turtlebot_controller_node")
     
@@ -243,7 +278,7 @@ class TurtlebotController(Node):
         action = self.control_shm[:]
 
         # to allow teleop when robot needs to be manually moved
-        should_stop = action == [0.0, 0.0, 0.0]
+        should_stop = action == [0.0, 0.0]
         if should_stop and self.stopped:
             return
         self.stopped = should_stop
@@ -256,37 +291,40 @@ class TurtlebotController(Node):
         vel_cmd.linear.x = action[0]
         vel_cmd.angular.z = action[1]
 
+        # sleep(np.random.rand() / 4) # may not need this since localization
         self.pub.publish(vel_cmd)
 
 class TurtlebotMonitor(Node):
     def __init__(self):
         super().__init__("turtlebot_monitor_node")
-        self.declare_parameter("use_gazebo", True)
+        self.declare_parameter("env_type", "default")
+        self.declare_parameter("robot_type", "default")
+
+        env_type = self.get_parameter("env_type").get_parameter_value().string_value
+        robot_type = self.get_parameter("robot_type").get_parameter_value().string_value
 
         self.get_logger().info("Initialized turtlebot_monitor_node")
 
-        self.grid = grid
-        self.brt = np.load(project_folder / "redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy")
+        
+        brt_cfg = BRT_CONFIG.get(robot_type, BRT_CONFIG["default"])
+        self.grid = brt_cfg['grid']
 
-        use_gazebo = self.get_parameter("use_gazebo").get_parameter_value().bool_value
-        if not use_gazebo:
-            self.get_logger().info("Turtlebot monitor using VICON")
-            self.create_subscription(
-                TransformStamped,
-                VICON_TOPIC,
-                self.log_state,
-                10
-            )
-            self._get_state = state_from_tf_msg
-        else:
-            self.get_logger().info("Turtlebot monitor using Gazebo")
-            self.create_subscription(
-                ModelStates,
-                GAZEBO_STATE_TOPIC,
-                self.log_state,
-                10
-            )
-            self._get_state = state_from_gazebo_msg
+        share_folder = get_package_share_directory("safe_rl_py")
+        self.brt = np.load(
+            os.path.join(share_folder, "brts", brt_cfg['brt_no_mismatch_file'])
+        )
+
+        
+        env_params = param_map.get(env_type)
+
+        self.get_logger().info(f"Turtlebot monitor using: {env_type=}")
+        self.create_subscription(
+            env_params['state_msg_type'],
+            env_params['state_topic'],
+            self.log_state,
+            10
+        )
+        self._get_state = env_params['state_msg_fn']
 
         self.get_logger().info("Initialized turtlebot_monitor_node")
     
@@ -296,7 +334,7 @@ class TurtlebotMonitor(Node):
             self.brt,
             state,
         )
-        self.get_logger().info(f"turtlebot2 state: {state}\n\
+        self.get_logger().info(f"turtlebot state: {state}\n\
                                 value = {value}")
 
 def main(args=None):

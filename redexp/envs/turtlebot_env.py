@@ -4,14 +4,15 @@ import matplotlib.pyplot as plt
 import os
 
 from redexp.utils import normalize_angle
-from redexp.config.turtlebot import OBSTACLE_RADIUS
+from redexp.config.turtlebot import TB_CONFIG
 from redexp.robots.turtlebot import Turtlebot
 
 import rclpy
 
 
 class TurtlebotEnv(gym.Env):
-    def __init__(self, goal_conditioned=False, model_mismatch=False, use_gazebo=False):
+    def __init__(self, goal_conditioned=False, model_mismatch=False, 
+                 env_type="gazebo", robot_type="tb3_bg"):
         self.goal_conditioned = goal_conditioned
 
         self.goal_location = np.array([1.75, -1.25], dtype=np.float32)
@@ -21,7 +22,8 @@ class TurtlebotEnv(gym.Env):
             goal_location=self.goal_location,
             goal_r=self.goal_r,
             model_mismatch=model_mismatch,
-            use_gazebo=use_gazebo,
+            env_type=env_type,
+            robot_type=robot_type,
         )
         self.state = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
@@ -45,11 +47,12 @@ class TurtlebotEnv(gym.Env):
             )
 
         self.obstacle_location = np.array([0.0, 0.0], dtype=np.float32)
-        self.obstacle_r = OBSTACLE_RADIUS
+        self.obstacle_r = TB_CONFIG.get(robot_type, "default").get('OBSTACLE_RADIUS')
 
         self.goal_idx = 0
 
     def reset(self, seed=None, options={}):
+        self.turtlebot.stop()
         print("ROBOT NEEDS TO BE RESET")
         input("Press Enter to continue...")
 
@@ -58,8 +61,8 @@ class TurtlebotEnv(gym.Env):
         if self.goal_conditioned:
             # set new goal location
             goal_locations = np.array([
-                [0.0, -1.9],
-                [0.0, 2.4],
+                [0.0, -1.7],
+                [0.0, 1.0],
             ])
             self.goal_idx = (1 + self.goal_idx) % 2
             self.goal_location = goal_locations[self.goal_idx]

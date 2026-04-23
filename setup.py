@@ -6,19 +6,21 @@ package_name = 'safe_rl_py'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='0.1.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join("share", package_name, "maps"), glob("maps/*")),
-        # Copies all files in the 'launch' folder
         (os.path.join('share', package_name, 'launch'), glob('launch/*')),
 
         # Copies all files in the 'worlds' folder
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
-        #(os.path.join('share', package_name, 'models', 'your_robot'), glob('models/your_robot/*'))
+        (os.path.join("share", package_name, "rviz"), glob("rviz/*")),
+        (os.path.join("share", package_name, "params"), glob("params/*")),
+        (os.path.join('share', package_name, 'description'), glob('description/*')),
+        (os.path.join('share', package_name, 'brts'), glob('redexp/brts/*.npy')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -36,6 +38,8 @@ setup(
             "safe_rl_robot_node = redexp.robots.turtlebot:main",
             "actuation_node = actuation_layer.actuation_node:main",
             "monitor_node = redexp.robots.turtlebot:main",
+            "nn_data_collector = data_collect.collect_telemetry_data:main",
+            'odom_proxy = data_collect.odom_proxy:main',
         ],
     },
 )

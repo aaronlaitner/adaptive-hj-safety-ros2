@@ -2,17 +2,9 @@ from odp.Grid.GridProcessing import Grid
 from redexp.dynamics.dubins_car import DubinsCar
 import numpy as np
 
-from redexp.config.turtlebot import (
-    TASC_7001_X_BOUNDARY_LOWER,
-    TASC_7001_X_BOUNDARY_UPPER,
-    TASC_7001_Y_BOUNDARY_LOWER,
-    TASC_7001_Y_BOUNDARY_UPPER,
-    SPEED,
-    RADIUS,
-    OBSTACLE_RADIUS,
-    OMEGA_MODEL_MISMATCH,
-    OMEGA_NO_MODEL_MISMATCH,
-)
+from redexp.config.turtlebot import TB_CONFIG
+
+tb_cfg = TB_CONFIG["tb2"]
 
 grid = Grid(
     np.array([-4, -4, -np.pi]),  # meters, meters, radians
@@ -27,45 +19,52 @@ grid = Grid(
 dstb_bounds = np.array([0.05, 0.05, 0.05])
 
 turtlebot_2_no_model_mismatch = DubinsCar(
-    r=RADIUS,
+    r=tb_cfg['RADIUS'],
     uMode="max",
     dMode="min",
-    speed=SPEED,
-    wMax=OMEGA_NO_MODEL_MISMATCH,
+    speed=tb_cfg['SPEED'],
+    wMax=tb_cfg['OMEGA_NO_MODEL_MISMATCH'],
     dMin=-dstb_bounds,
     dMax=dstb_bounds,
 )
 
 turtlebot_2_model_mismatch = DubinsCar(
-    r=RADIUS,
+    r=tb_cfg['RADIUS'],
     uMode="max",
     dMode="min",
-    speed=SPEED,
-    wMax=OMEGA_MODEL_MISMATCH,
+    speed=tb_cfg['SPEED'],
+    wMax=tb_cfg['OMEGA_MODEL_MISMATCH'],
     dMin=-dstb_bounds,
     dMax=dstb_bounds,
 )
 
+path_prefix = "./redexp/brts/"
+brt_no_model_mismatch_file = "turtlebot_2_brt_speed_06_wMax_11_dstb.npy"
+brt_model_mismatch_file = "turtlebot_2_brt_speed_06_wMax_06_dstb.npy"
 
 if __name__ in "__main__":
     from odp.Shapes.ShapesFunctions import *
     from odp.Plots.plot_options import *
     from odp.solver import HJSolver
 
-    cylinder_r = RADIUS + OBSTACLE_RADIUS
+    cylinder_r = tb_cfg['RADIUS'] + tb_cfg['OBSTACLE_RADIUS']
     ivf = CylinderShape(grid, [2], np.zeros(3), cylinder_r)
     ivf = Union(
         ivf,
         Union(
-            Lower_Half_Space(grid, 0, TASC_7001_X_BOUNDARY_LOWER + RADIUS),
-            Upper_Half_Space(grid, 0, TASC_7001_X_BOUNDARY_UPPER - RADIUS),
+            Lower_Half_Space(grid, 0, 
+                             tb_cfg['X_BOUNDARY_LOWER'] + tb_cfg['RADIUS']),
+            Upper_Half_Space(grid, 0, 
+                             tb_cfg['X_BOUNDARY_UPPER'] - tb_cfg['RADIUS']),
         ),
     )
     ivf = Union(
         ivf,
         Union(
-            Lower_Half_Space(grid, 1, TASC_7001_Y_BOUNDARY_LOWER + RADIUS),
-            Upper_Half_Space(grid, 1, TASC_7001_Y_BOUNDARY_UPPER - RADIUS),
+            Lower_Half_Space(grid, 1, 
+                             tb_cfg['Y_BOUNDARY_LOWER'] + tb_cfg['RADIUS']),
+            Upper_Half_Space(grid, 1, 
+                             tb_cfg['Y_BOUNDARY_UPPER'] - tb_cfg['RADIUS']),
         ),
     )
 
@@ -82,12 +81,11 @@ if __name__ in "__main__":
         ivf,
         tau,
         compMethods,
-        PlotOptions(do_plot=True, plot_type="set", plotDims=[0, 1, 2], slicesCut=[]),
         saveAllTimeSteps=False,
         untilConvergent=True,
         epsilon=0.000005,
     )
-    np.save("./redexp/brts/turtlebot_2_brt_speed_06_wMax_11_dstb.npy", result)
+    np.save(path_prefix + brt_no_model_mismatch_file, result)
 
     result = HJSolver(
         turtlebot_2_model_mismatch,
@@ -95,10 +93,9 @@ if __name__ in "__main__":
         ivf,
         tau,
         compMethods,
-        PlotOptions(do_plot=True, plot_type="set", plotDims=[0, 1, 2], slicesCut=[]),
         saveAllTimeSteps=False,
         untilConvergent=True,
         epsilon=0.000005,
     )
 
-    np.save("./redexp/brts/turtlebot_2_brt_speed_06_wMax_06_dstb.npy", result)
+    np.save(path_prefix + brt_model_mismatch_file, result)

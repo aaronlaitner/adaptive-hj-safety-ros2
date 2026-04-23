@@ -185,3 +185,4 @@ log/
 # Runtime logs (your Week 3 output)
 logs/
 *.csv
+.vscode
